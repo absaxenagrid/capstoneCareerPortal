@@ -1,0 +1,217 @@
+services:
+
+  # ==========================
+  # PostgreSQL
+  # ==========================
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: forge-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: forge
+      POSTGRES_PASSWORD: forge123
+      POSTGRES_DB: forge
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - forge-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forge"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ==========================
+  # MinIO
+  # ==========================
+
+  minio:
+    image: minio/minio:latest
+    container_name: forge-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - forge-network
+
+  # ==========================
+  # Eureka Server
+  # ==========================
+
+  eureka-server:
+    build:
+      context: ./backend/eureka-server
+    container_name: forge-eureka
+    restart: unless-stopped
+    ports:
+      - "8761:8761"
+    environment:
+      EUREKA_HOST: eureka-server
+    networks:
+      - forge-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8761/actuator/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+  # ==========================
+  # API Gateway
+  # ==========================
+
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+    container_name: forge-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - forge-network
+
+  # ==========================
+  # File Service
+  # ==========================
+
+  file-service:
+    build:
+      context: ./backend/file-service
+    container_name: forge-file
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+      MINIO_BUCKET: candidate-resumes
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      - minio
+      - eureka-server
+    networks:
+      - forge-network
+
+  # ==========================
+  # Candidate Service
+  # ==========================
+
+  candidate-service:
+    build:
+      context: ./backend/candidate-service
+    container_name: forge-candidate
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/candidate_db
+      SPRING_DATASOURCE_USERNAME: forge
+      SPRING_DATASOURCE_PASSWORD: forge123
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      FILE_SERVICE_URL: http://file-service:8083
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      file-service:
+        condition: service_started
+    networks:
+      - forge-network
+
+  # ==========================
+  # Application Service
+  # ==========================
+
+  application-service:
+    build:
+      context: ./backend/application-service
+    container_name: forge-application
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/application_db
+      SPRING_DATASOURCE_USERNAME: forge
+      SPRING_DATASOURCE_PASSWORD: forge123
+      EUREKA_HOST: eureka-server
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      NOTIFICATION_SERVICE_URL: http://notification-service:8087
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - forge-network
+
+  # ==========================
+  # Notification Service
+  # ==========================
+
+  notification-service:
+    build:
+      context: ./backend/notification-service
+    container_name: forge-notification
+    restart: unless-stopped
+    ports:
+      - "8087:8087"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/notification_db
+      SPRING_DATASOURCE_USERNAME: forge
+      SPRING_DATASOURCE_PASSWORD: forge123
+      EUREKA_HOST: eureka-server
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USER: ${MAIL_USER:-absaxena@griddynamics.com}
+      MAIL_PASS: ${MAIL_PASS:-your_app_password_here}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - forge-network
+
+  # ==========================
+  # Frontend
+  # ==========================
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: forge-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      api-gateway:
+        condition: service_started
+    networks:
+      - forge-network
+
+volumes:
+  postgres_data:
+  minio_data:
+
+networks:
+  forge-network:
+    driver: bridge

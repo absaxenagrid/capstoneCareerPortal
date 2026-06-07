@@ -1,0 +1,111 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  codec:
+    max-in-memory-size: 25MB
+
+  cloud:
+    gateway:
+      httpclient:
+        connect-timeout: 10000   # 10s
+        response-timeout: 120s   # 2 min for file upload + parse
+        max-header-size: 16KB
+        pool:
+          max-connections: 500
+
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"]
+            allowedHeaders: "*"
+            exposedHeaders: ["Content-Disposition"]
+            maxAge: 3600
+
+      routes:
+        - id: candidate-service
+          uri: lb://candidate-service
+          predicates:
+            - Path=/api/candidates/**, /api/education/**, /api/experience/**, /api/skills/**, /api/resumes/**
+          filters:
+            - StripPrefix=0
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                methods: GET,POST,PUT,PATCH,DELETE
+                backoff:
+                  firstBackoff: 500ms
+                  maxBackoff: 3s
+                  factor: 2
+
+        - id: application-service
+          uri: lb://application-service
+          predicates:
+            - Path=/api/applications/**
+          filters:
+            - StripPrefix=0
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                methods: GET,POST,PUT,PATCH,DELETE
+                backoff:
+                  firstBackoff: 500ms
+                  maxBackoff: 3s
+                  factor: 2
+
+        - id: file-service
+          uri: lb://file-service
+          predicates:
+            - Path=/api/files/**
+          filters:
+            - StripPrefix=0
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                methods: GET,POST,DELETE
+                backoff:
+                  firstBackoff: 1s
+                  maxBackoff: 5s
+                  factor: 2
+
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - StripPrefix=0
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                methods: GET,POST,PATCH
+                backoff:
+                  firstBackoff: 500ms
+                  maxBackoff: 3s
+                  factor: 2
+
+  # Eureka load balancer — health check aware routing
+  loadbalancer:
+    eureka:
+      enabled: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_HOST:localhost}:8761/eureka/
+    registry-fetch-interval-seconds: 5
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway

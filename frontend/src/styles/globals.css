@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  /* Light mode defaults */
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans;
+  }
+
+  /* Dark mode body */
+  .dark body, body.dark {
+    @apply bg-gray-950 text-gray-100;
+  }
+}
+
+@layer components {
+  /* Buttons */
+  .btn-primary {
+    @apply bg-forge-blue hover:bg-forge-blue-dark text-white font-semibold px-4 py-2 rounded-lg transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors duration-150;
+  }
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors;
+  }
+  .btn-ghost {
+    @apply text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 px-3 py-2 rounded-lg transition-colors;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm;
+  }
+
+  /* Inputs */
+  .input-field {
+    @apply w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm
+           bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
+           placeholder-gray-400 dark:placeholder-gray-500
+           focus:outline-none focus:ring-2 focus:ring-forge-blue focus:border-transparent transition-all;
+  }
+
+  /* Labels */
+  .label {
+    @apply block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  /* Section titles */
+  .section-title {
+    @apply text-lg font-bold text-gray-900 dark:text-gray-100;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    @apply bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800;
+  }
+
+  /* Header */
+  .topbar {
+    @apply bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800;
+  }
+
+  /* Stage badges */
+  .stage-applied          { @apply bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300; }
+  .stage-screening        { @apply bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300; }
+  .stage-interview        { @apply bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300; }
+  .stage-offer            { @apply bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300; }
+  .stage-withdrawn        { @apply bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400; }
+  .stage-rejected         { @apply bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300; }
+}
