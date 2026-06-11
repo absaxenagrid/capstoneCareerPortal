@@ -9,7 +9,8 @@ import com.forge.candidate.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
@@ -21,15 +22,29 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class CandidateServiceTest {
 
-    @Mock CandidateRepository candidateRepository;
-    @Mock EducationRepository educationRepository;
-    @Mock ExperienceRepository experienceRepository;
-    @Mock CandidateSkillRepository skillRepository;
-    @Mock PreferenceRepository preferenceRepository;
-    @Mock ResumeRepository resumeRepository;
-    @Mock SkillMasterRepository skillMasterRepository;
+    @Mock
+    CandidateRepository candidateRepository;
 
-    @InjectMocks CandidateService candidateService;
+    @Mock
+    EducationRepository educationRepository;
+
+    @Mock
+    ExperienceRepository experienceRepository;
+
+    @Mock
+    CandidateSkillRepository skillRepository;
+
+    @Mock
+    PreferenceRepository preferenceRepository;
+
+    @Mock
+    ResumeRepository resumeRepository;
+
+    @Mock
+    SkillMasterRepository skillMasterRepository;
+
+    @InjectMocks
+    CandidateService candidateService;
 
     private CreateCandidateRequest validRequest;
 
@@ -46,6 +61,7 @@ class CandidateServiceTest {
     @Test
     void createCandidate_success() {
         when(candidateRepository.existsByEmail(anyString())).thenReturn(false);
+
         Candidate saved = Candidate.builder()
                 .candidateId(1L)
                 .firstName("John")
@@ -54,13 +70,16 @@ class CandidateServiceTest {
                 .source("PORTAL")
                 .isDeleted(false)
                 .build();
+
         when(candidateRepository.save(any())).thenReturn(saved);
-        when(resumeRepository.findByCandidateCandidateIdAndIsActiveTrue(1L)).thenReturn(Optional.empty());
+        when(resumeRepository.findByCandidateCandidateIdAndIsActiveTrue(1L))
+                .thenReturn(Optional.empty());
 
         CandidateResponse response = candidateService.createCandidate(validRequest);
 
         assertThat(response).isNotNull();
         assertThat(response.getEmail()).isEqualTo("john.doe@test.com");
+
         verify(candidateRepository).save(any(Candidate.class));
     }
 
@@ -75,7 +94,8 @@ class CandidateServiceTest {
 
     @Test
     void getCandidateById_notFound_throwsException() {
-        when(candidateRepository.findByCandidateIdAndIsDeletedFalse(99L)).thenReturn(Optional.empty());
+        when(candidateRepository.findByCandidateIdAndIsDeletedFalse(99L))
+                .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> candidateService.getCandidateById(99L))
                 .isInstanceOf(ResourceNotFoundException.class)
@@ -84,19 +104,32 @@ class CandidateServiceTest {
 
     @Test
     void deleteCandidate_softDelete() {
-        Candidate c = Candidate.builder().candidateId(1L).isDeleted(false).build();
-        when(candidateRepository.findByCandidateIdAndIsDeletedFalse(1L)).thenReturn(Optional.of(c));
-        when(candidateRepository.save(any())).thenReturn(c);
+        Candidate c = Candidate.builder()
+                .candidateId(1L)
+                .isDeleted(false)
+                .build();
+
+        when(candidateRepository.findByCandidateIdAndIsDeletedFalse(1L))
+                .thenReturn(Optional.of(c));
+
+        when(candidateRepository.save(any()))
+                .thenReturn(c);
 
         candidateService.deleteCandidate(1L);
 
-        assertThat(c.getDeleted()).isTrue();
+        assertThat(c.getIsDeleted()).isTrue();
+
         verify(candidateRepository).save(c);
     }
 
     @Test
     void getSkillSuggestions_returnsMatchingSkills() {
-        var master = new com.forge.candidate.entity.SkillMaster(1L, "Java", "Language");
+        var master = new com.forge.candidate.entity.SkillMaster(
+                1L,
+                "Java",
+                "Language"
+        );
+
         when(skillMasterRepository.findBySkillNameStartingWithIgnoreCase("jav"))
                 .thenReturn(java.util.List.of(master));
 
